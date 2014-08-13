@@ -1,28 +1,14 @@
-from flask.ext.restful import Resource
+#from flask.ext.restful import Resource
 from glob import glob
 import os
 import numpy as np
 
 
-class GalDistribute(Resource):
+class GalDistribute(object):
     '''Stores and distributes names and spectra of galaxies that need to be
     processed'''
     
-    def get(self):
-        '''parses requests and does stuff'''
-        #assert isinstance(request, str)
-        # check if has been initalized
-        if not hasattr(self, 'results'):
-            self.initalize()
-            self.name = self._generate_gal()
-        #if request.lower() == 'need data':
-            # send data
-        return {'gal':self.name.next()}
-        
 
-    def put(self, todo_id):
-        todos[todo_id] = request.form['data']
-        return {todo_id: todos[todo_id]}
 
     def initalize(self, path='/home/thuso/Phd/LRGs/Stacked_SDSS/stacks',
                   outpath='/home/thuso/Phd/experements/hierarical/LRG_Stack/stacked_real'):
