@@ -1,19 +1,10 @@
-<<<<<<< HEAD:galdist.py
-import glob
-=======
-#from flask.ext.restful import Resource
 from glob import glob
->>>>>>> 735ddf6bd85ea91291cce99aa4eebdb041d1b07f:resources/querylocaldir.py
 import os
 import numpy
 from base import MessageHandler
 
-<<<<<<< HEAD:galdist.py
-class GalDistribute(MessageHandler):
-=======
 
 class GalDistribute(object):
->>>>>>> 735ddf6bd85ea91291cce99aa4eebdb041d1b07f:resources/querylocaldir.py
     '''Stores and distributes names and spectra of galaxies that need to be
     processed'''
     
