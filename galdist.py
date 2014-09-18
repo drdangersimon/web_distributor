@@ -1,27 +1,23 @@
+<<<<<<< HEAD:galdist.py
 import glob
+=======
+#from flask.ext.restful import Resource
+from glob import glob
+>>>>>>> 735ddf6bd85ea91291cce99aa4eebdb041d1b07f:resources/querylocaldir.py
 import os
 import numpy
 from base import MessageHandler
 
+<<<<<<< HEAD:galdist.py
 class GalDistribute(MessageHandler):
+=======
+
+class GalDistribute(object):
+>>>>>>> 735ddf6bd85ea91291cce99aa4eebdb041d1b07f:resources/querylocaldir.py
     '''Stores and distributes names and spectra of galaxies that need to be
     processed'''
     
-    def get(self):
-        '''parses requests and does stuff'''
-        #assert isinstance(request, str)
-        # check if has been initalized
-        if not hasattr(self, 'results'):
-            self.initalize()
-            self.name = self._generate_gal()
-        #if request.lower() == 'need data':
-            # send data
-        return {'gal':self.name.next()}
-        
 
-    def put(self, todo_id):
-        todos[todo_id] = request.form['data']
-        return {todo_id: todos[todo_id]}
 
     def initalize(self, path='/home/thuso/Phd/LRGs/Stacked_SDSS/stacks',
                   outpath='/home/thuso/Phd/experements/hierarical/LRG_Stack/stacked_real'):
