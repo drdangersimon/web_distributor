@@ -1,10 +1,9 @@
-from flask.ext.restful import Resource
-from glob import glob
+import glob
 import os
-import numpy as np
+import numpy
+from base import MessageHandler
 
-
-class GalDistribute(Resource):
+class GalDistribute(MessageHandler):
     '''Stores and distributes names and spectra of galaxies that need to be
     processed'''
     
