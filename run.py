@@ -1,7 +1,8 @@
 import time
 import zmq
+import socket
 from  multiprocessing import Process
-
+import numpy as np
 
 class Server(object):
     def __init__(self, send_path, result_path, sendport=5557, reciveprot=5558,
@@ -24,73 +25,66 @@ class Server(object):
         self.recivport = int(reciveprot)
         self.manageport = int(mangeport)
         self.context = zmq.Context()
+        self.cur_workers = {}
         self.initalize()
         
     def initalize(self):
         '''starts all sockets'''
         # send
-        self.gal_send = self.context.socket(zmq.PUSH)
+        self.gal_send = self.context.socket(zmq.DEALER)
         self.gal_send.bind("tcp://127.0.0.1:%i"%self.sendport)
+        self.gal_send.setsockopt(zmq.IDENTITY, b'gal send')
         # recive results
-        self.results_receiver = self.context.socket(zmq.PULL)
+        self.results_receiver = self.context.socket(zmq.DEALER)
         self.results_receiver.bind("tcp://127.0.0.1:%i"%self.recivport)
+        self.results_receiver.setsockopt(zmq.IDENTITY, b'gal recive')
         # manage
-        self.control_sender = self.context.socket(zmq.PUB)
+        self.control_sender = self.context.socket(zmq.DEALER)
         self.control_sender.bind("tcp://127.0.0.1:%i"%self.manageport)
+        self.control_sender.setsockopt(zmq.IDENTITY, b'gal manage')
+        # make poll
+        self.poller = zmq.Poller()
+        self.poller.register(self.gal_send, zmq.POLLIN|zmq.POLLOUT)
+        self.poller.register(self.results_receiver, zmq.POLLIN)
+        self.poller.register(self.control_sender, zmq.POLLIN|zmq.POLLOUT)
+        
+
         # load in galaxies
 
     def start(self):
         '''Starts distributing data from input directories'''
         while True:
+            time.sleep(1)
             # check results
-            todo = self.result_manager()
-            # check output
-            if todo == 'data':
-                # send data
-                self.send()
-            elif todo == 'status':
-                # recive status
-                self.update()
-            elif todo == 'done':
-                # recive finish work and save
-                self.save()
-            # check if all data is done
-            if self.done == self.len_data:
-                # send kill
-                self.close()
-                break
+            socks = dict(self.poller.poll(1000))           
+            if self.gal_send in socks:
+                # send galaxy data
+                if socks[self.gal_send] == zmq.POLLIN:
+                    # recive
+                    print 'recive gal'
+                    print self.gal_send.recv()
+                
+                else:
+                    #send
+                    self.gal_send.send_pyobj(([1],[1,2]))
+                    print 'send gal'
+                
+            if self.results_receiver in socks:
+                print 'results'
+            if self.control_sender in socks:
+                print 'control'
+ 
     def save(self):
-
+        pass
                
-    def send(self):
+    def send(self, data, param):
         '''send data down a zeromq "PUSH" connection to be processed by 
         listening workers, in a round robin load balanced fashion.'''
-        # get next galaxy to send
-
-        #send
-        self.gal_send.send_pyobj(work_message)
-    
-        time.sleep(1)
-
+        pass
     def update(self):
-        # Initialize a zeromq context
-        context = zmq.Context()
-    
-        # Set up a channel to receive results
-        results_receiver = context.socket(zmq.PULL)
-        results_receiver.bind("tcp://127.0.0.1:5558")
-
-        # Set up a channel to send control commands
- 
-        for task_nbr in range(10000):
-            result_message = results_receiver.recv_json()
-            print "Worker %i answered: %i" % (result_message['worker'], result_message['result'])
-
-        # Signal to all workers that we are finsihed
-        control_sender.send("FINISHED")
-        time.sleep(5)
+        pass
     def close(self):
-        control_sender.send("FINISHED")
+        pass
 
 class Client(object):
     '''
@@ -100,71 +94,72 @@ class Client(object):
 # results manager.
     '''
     def __init__(self, host_addr, reciveport=5557, sendport=5558,
-                 mangeport=5556):):
-        
+                 mangeport=5556):
+        # get identity
+        self.id = socket.gethostname() + str(int(round(np.random.rand()*1000)))
         self.sendport = int(sendport)
-        self.recivport = int(reciveprot)
+        self.recivport = int(reciveport)
         self.manageport = int(mangeport)
         self.host_addr = host_addr
         self.context = zmq.Context()
         # initalize contex managers
-        self.work_receiver = self.context.socket(zmq.PULL)
+        self.work_receiver = self.context.socket(zmq.REQ)
         self.work_receiver.connect("tcp://%s:%i"%(self.host_addr, self.recivport))
-        self.results_sender = self.context.socket(zmq.PUSH)
+        self.work_receiver.setsockopt(zmq.IDENTITY, self.id )
+        self.results_sender = self.context.socket(zmq.REQ)
         self.results_sender.connect("tcp://%s:%i"%(self.host_addr, self.sendport))
-        self.control_receiver = self.context.socket(zmq.SUB)
+        self.results_sender.setsockopt(zmq.IDENTITY, self.id )
+        self.control_receiver = self.context.socket(zmq.REQ)
         self.control_receiver.connect("tcp://%s:%i"%(self.host_addr,self.manageport))
-
-        control_receiver.setsockopt(zmq.SUBSCRIBE, "")
-        self. control_receiver
+        self.control_receiver.setsockopt(zmq.IDENTITY, self.id )
+        # make poller
+        self.poller = zmq.Poller()
+        self.poller.register(self.work_receiver, zmq.POLLIN|zmq.POLLOUT)
+        self.poller.register(self.results_sender, zmq.POLLOUT)
+        self.poller.register(self.control_receiver, zmq.POLLIN|zmq.POLLOUT)
+        
     def get_data(self):
-        pass
-    def send_update(self):
-        pass
-    def send_results(self)
-    def worker(self, wrk_num):
-        # Initialize a zeromq context
-        
+        '''Reqests data for processing'''
+        # tell client that it's ready
+        self.work_receiver.send(b'ready')
+        data, param = self.work_receiver.recv_pyobj()
+        print 'recived_data'
+        # check if exit message
+        if data is None:
+            sys.exit(0)
+        return data, param
     
-        
+    def send_update(self, ess):
+        '''Sends effective sample size to client'''
+        # send client report
+        self.control_receiver.send_pyobj(ess)
 
+    def send_results(self, results):
+        '''When done sends results'''
+        # send results
+        self.results_sender.send_pyobj(results)
+
+def test_worker():
+    '''Stars worker and does tests'''
+    print 'starting worker'
+    client = Client('localhost')
+    data, param = client.get_data()
+    print data
+
+def test_server():
+    print 'starting server'
+    server = Server('','')
+    server.start()
+    print 'done'
     
-        # Set up a poller to multiplex the work receiver and control receiver channels
-        poller = zmq.Poller()
-        poller.register(work_receiver, zmq.POLLIN)
-        poller.register(control_receiver, zmq.POLLIN)
-
-        # Loop and accept messages from both channels, acting accordingly
-        while True:
-            socks = dict(poller.poll())
-
-            # If the message came from work_receiver channel, square the number
-            # and send the answer to the results reporter
-            if socks.get(work_receiver) == zmq.POLLIN:
-                work_message = work_receiver.recv_json()
-                product = work_message['num'] * work_message['num']
-                answer_message = { 'worker' : wrk_num, 'result' : product }
-                results_sender.send_json(answer_message)
-
-            # If the message came over the control channel, shut down the worker.
-            if socks.get(control_receiver) == zmq.POLLIN:
-                control_message = control_receiver.recv()
-                if control_message == "FINISHED":
-                    print("Worker %i received FINSHED, quitting!" % wrk_num)
-                    break
-
-
 if __name__ == "__main__":
 
-    # Create a pool of workers to distribute work to
-    worker_pool = range(10)
-    for wrk_num in range(len(worker_pool)):
-        Process(target=worker, args=(wrk_num,)).start()
-
     # Fire up our result manager...
-    result_manager = Process(target=result_manager, args=())
+    result_manager = Process(target=test_server, args=())
     result_manager.start()
 
-    # Start the ventilator!
-    ventilator = Process(target=ventilator, args=())
-    ventilator.start()
+    # Create a pool of workers to distribute work to
+    worker_pool = range(1)
+    for wrk_num in range(len(worker_pool)):
+        Process(target=test_worker, args=()).start()
+
